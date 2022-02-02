@@ -1,0 +1,106 @@
+import dlib
+import numpy as np
+import cv2
+import sys
+import pyautogui
+import mediapipe as mp
+import math
+
+webcam = cv2.VideoCapture(0)
+
+webcamWidth,webcamHeight = 1280, 720
+screenWidth,screenHeight = pyautogui.size()
+
+screenWebcamWidthRatio = screenWidth/webcamWidth
+screenWebcamHeightRatio = screenHeight/webcamHeight
+##coordinates for landmarks are counted from this webcam window resolution (pixelX,pixelY)
+
+webcam = cv2.VideoCapture(0)
+resolutionWidth = webcam.set(cv2.CAP_PROP_FRAME_WIDTH,webcamWidth)
+resolutionHeight = webcam.set(cv2.CAP_PROP_FRAME_HEIGHT,webcamHeight)
+
+out = cv2.VideoWriter('outpy.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 5, (webcamWidth,webcamHeight))
+
+mp_drawing = mp.solutions.drawing_utils
+drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
+mp_face_mesh = mp.solutions.face_mesh
+mp_drawing_styles = mp.solutions.drawing_styles
+face_mesh = mp_face_mesh.FaceMesh(max_num_faces=1,
+    refine_landmarks=True,
+    min_detection_confidence=0.6,
+    min_tracking_confidence=0.6)
+
+mp_face_mesh.FACEMESH_LEFT_EYE
+
+
+## landmark numerings
+
+LEFT_IRIS = [474,475, 476, 477]
+RIGHT_IRIS = [469, 470, 471, 472]
+
+LEFT_EYE =[ 362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385,384, 398 ]
+RIGHT_EYE=[ 33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161 , 246 ]
+
+
+while (webcam.isOpened()):
+
+    ret,image = webcam.read()
+
+    if(ret is False):
+        print("something went wrong with video stream")
+        break        
+        
+     # pass by reference.
+    image.flags.writeable = False
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) #BGR TO RGB 
+    
+    results = face_mesh.process(image)
+    
+    # calculate distance between two coordinates
+    
+    # sqrt((x2-X1)^2 + (Y2-Y1)^2)
+    
+    
+    # Draw the face mesh annotations on the image.
+    image.flags.writeable = True
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    
+    if results.multi_face_landmarks:
+        for face in results.multi_face_landmarks:
+            pyautogui.moveTo(face.landmark[473].x*webcamWidth*screenWebcamWidthRatio ,face.landmark[473].y*webcamHeight*screenWebcamHeightRatio ,0.05,pyautogui.easeOutQuad)
+            #cv2.putText(image,f" delta left eye-iris {(int(face.landmark[384].x*webcamWidth) - int(face.landmark[468].x*webcamWidth))}",(0,100),cv2.FONT_ITALIC,3,(255, 255, 0),2,cv2.FILLED,0)
+            #cv2.putText(image,f" delta right eye-iris {(int(face.landmark[473].x*webcamWidth) - int(face.landmark[160].x*webcamWidth))}",(0,200),cv2.FONT_ITALIC,3,(255, 255, 0),2,cv2.FILLED,0)
+            #cv2.putText(image,f" left-eye width{(int(face.landmark[157].x*webcamWidth) -int(face.landmark[160].x*webcamWidth))}",(0,200),cv2.FONT_ITALIC,3,(255, 255, 0),3,cv2.FILLED,0)
+            cv2.putText(image,f" IPD {int(face.landmark[473].x*webcamWidth) - (face.landmark[468].x*webcamWidth)} ",(0,400),cv2.FONT_ITALIC,2,(255, 255, 0),2,cv2.FILLED,0)
+            cv2.putText(image,f" iris width {(int(face.landmark[474].x*webcamWidth) - int(face.landmark[476].x*webcamWidth))}",(0,200),cv2.FONT_ITALIC,3,(255, 255, 0),2,cv2.FILLED,0)
+            cv2.putText(image,f" ratio {(int(face.landmark[473].x*webcamWidth) - (face.landmark[468].x*webcamWidth))/(int(face.landmark[474].x*webcamWidth) - int(face.landmark[476].x*webcamWidth))}",(0,300),cv2.FONT_ITALIC,3,(255, 255, 0),2,cv2.FILLED,0)
+            
+            #distance_eyes = math.sqrt((int(face.landmark[473].x*webcamWidth) -int(face.landmark[468].x*webcamWidth))^2 + (int(face.landmark[473].y*webcamHeight) -int(face.landmark[468].y*webcamHeight))^2)
+            
+            #cv2.putText(image,f" distance {distance_eyes} ",(0,400),cv2.FONT_ITALIC,2,(255, 255, 0),2,cv2.FILLED,0)
+            
+
+    
+    if results.multi_face_landmarks:
+        for face_landmarks in results.multi_face_landmarks:
+
+            mp_drawing.draw_landmarks(
+                image=image,
+                landmark_list=face_landmarks,
+                connections=mp_face_mesh.FACEMESH_IRISES,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=mp_drawing_styles
+                .get_default_face_mesh_iris_connections_style())
+    
+        
+    out.write(image)
+
+    # Flip the image horizontally for a selfie-view display.
+    # cv2.imshow('MediaPipe Face Mesh', cv2.flip(image, 1))
+    cv2.imshow('MediaPipe Face Mesh', image)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+    
+webcam.release()
+out.release()
+cv2.destroyAllWindows()
